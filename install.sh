@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# AI Menu Installer - Installs AI CLI tools and sets up terminal "ai" menu
+# AI Menu Installer - Universal Installer for Linux & macOS
+# Auto-detects, auto-installs, and configures 10 AI coding agents in your terminal.
 set -e
 
-# Terminal colors
+# Terminal formatting
 BOLD='\033[1m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -12,28 +13,24 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${BOLD}${CYAN}====================================================${NC}"
-echo -e "${BOLD}${CYAN}            AI CLI Menu - Universal Installer       ${NC}"
+echo -e "${BOLD}${CYAN}      AI CLI Menu - Universal Installer (POSIX)    ${NC}"
 echo -e "${BOLD}${CYAN}====================================================${NC}"
-echo -e "${BLUE}Configuring interactive terminal menu for 10 AI agents${NC}\n"
 
-# Helper functions
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
+OS="$(uname -s)"
+case "$OS" in
+    Linux*)     PLATFORM="Linux" ;;
+    Darwin*)    PLATFORM="macOS" ;;
+    *)          PLATFORM="Unknown ($OS)" ;;
+esac
 
-log_ok() {
-    echo -e "${GREEN}[✓]${NC} $1"
-}
+echo -e "${BLUE}Detected OS:${NC} ${BOLD}${PLATFORM}${NC}"
+echo -e "${BLUE}Configuring interactive terminal menu for 10 AI agents...${NC}\n"
 
-log_warn() {
-    echo -e "${YELLOW}[!]${NC} $1"
-}
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_ok()   { echo -e "${GREEN}[✓]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+log_err()  { echo -e "${RED}[✗]${NC} $1"; }
 
-log_err() {
-    echo -e "${RED}[✗]${NC} $1"
-}
-
-# Ensure destination directories exist
 INSTALL_DIR="$HOME/.local/bin"
 mkdir -p "$INSTALL_DIR" "$HOME/bin"
 
@@ -53,8 +50,17 @@ fi
 if [ -d "$HOME/.npm-global/bin" ] && [[ ":$PATH:" != *":$HOME/.npm-global/bin:"* ]]; then
     export PATH="$HOME/.npm-global/bin:$PATH"
 fi
-if [ -d "$HOME/.local/bin" ] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-    export PATH="$HOME/.local/bin:$PATH"
+if [ -d "$INSTALL_DIR" ] && [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+    export PATH="$INSTALL_DIR:$PATH"
+fi
+
+# Ensure node/npm is available, offer guidance if missing
+if ! command -v npm >/dev/null 2>&1; then
+    log_warn "Node.js & npm not found in PATH."
+    if [ "$PLATFORM" = "macOS" ] && command -v brew >/dev/null 2>&1; then
+        log_info "Installing Node.js via Homebrew..."
+        brew install node || true
+    fi
 fi
 
 # 1. Antigravity (agy)
@@ -97,7 +103,11 @@ check_and_install_copilot() {
         log_ok "GitHub Copilot CLI is already installed"
     else
         log_warn "Copilot not found. Installing..."
-        curl -fsSL https://gh.io/copilot-install | bash || true
+        if [ "$PLATFORM" = "macOS" ] && command -v brew >/dev/null 2>&1; then
+            brew install copilot-cli || curl -fsSL https://gh.io/copilot-install | bash || true
+        else
+            curl -fsSL https://gh.io/copilot-install | bash || true
+        fi
     fi
 }
 
@@ -246,19 +256,20 @@ log_ok "Installed launcher to $MENU_TARGET and $INSTALL_DIR/ai"
 echo -e "\n${BOLD}--- Configuring Shell Integrations ---${NC}"
 
 # Bash
-if [ -f "$HOME/.bashrc" ]; then
-    if ! grep -q "alias ai=" "$HOME/.bashrc"; then
-        echo -e "\n# AI Terminal Menu\nalias ai='bash $MENU_TARGET'" >> "$HOME/.bashrc"
-        log_ok "Configured alias in ~/.bashrc"
-    else
-        log_ok "Alias already present in ~/.bashrc"
+for bash_file in "$HOME/.bashrc" "$HOME/.bash_profile"; do
+    if [ -f "$bash_file" ]; then
+        if ! grep -q "alias ai=" "$bash_file"; then
+            echo -e "\n# AI Terminal Menu\nexport PATH=\"$INSTALL_DIR:\$PATH\"\nalias ai='bash $MENU_TARGET'" >> "$bash_file"
+            log_ok "Configured alias in $bash_file"
+        fi
     fi
-fi
+done
 
-# Zsh
-if [ -f "$HOME/.zshrc" ]; then
+# Zsh (Default on macOS)
+if [ -f "$HOME/.zshrc" ] || [ "$PLATFORM" = "macOS" ]; then
+    touch "$HOME/.zshrc"
     if ! grep -q "alias ai=" "$HOME/.zshrc"; then
-        echo -e "\n# AI Terminal Menu\nalias ai='bash $MENU_TARGET'" >> "$HOME/.zshrc"
+        echo -e "\n# AI Terminal Menu\nexport PATH=\"$INSTALL_DIR:\$PATH\"\nalias ai='bash $MENU_TARGET'" >> "$HOME/.zshrc"
         log_ok "Configured alias in ~/.zshrc"
     else
         log_ok "Alias already present in ~/.zshrc"
@@ -272,6 +283,7 @@ if [ -f "$FISH_CONFIG" ]; then
         cat << 'FISHEOF' >> "$FISH_CONFIG"
 
 # AI Terminal Menu
+fish_add_path -a $HOME/.local/bin
 function ai
     bash ~/.local/bin/ai-menu
 end
