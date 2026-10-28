@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# AI Menu - Terminal Launcher for Top AI Coding Agents
+# Auto-configured for unrestricted execution, YOLO mode, and no sandbox.
+
+export COLUMNS=1
+
+resolve_bin() {
+    local cmd="$1"
+    shift
+    if command -v "$cmd" >/dev/null 2>&1; then
+        command -v "$cmd"
+        return 0
+    fi
+    for p in "$@"; do
+        if [ -x "$p" ]; then
+            echo "$p"
+            return 0
+        fi
+    done
+    echo "$cmd"
+}
+
+AGY_BIN=$(resolve_bin agy "$HOME/.local/bin/agy" "$HOME/.gemini/antigravity-cli/bin/agy")
+OPENCODE_BIN=$(resolve_bin opencode "$HOME/.opencode/bin/opencode")
+KIRO_BIN=$(resolve_bin kiro-cli "/usr/bin/kiro-cli" "$HOME/.local/bin/kiro-cli")
+COPILOT_BIN=$(resolve_bin copilot "$HOME/.local/bin/copilot")
+FREEBUFF_BIN=$(resolve_bin freebuff "$HOME/.npm-global/bin/freebuff" "/usr/local/bin/freebuff")
+CLINE_BIN=$(resolve_bin cline "$HOME/.npm-global/bin/cline" "/usr/local/bin/cline")
+KILO_BIN=$(resolve_bin kilo "$HOME/.kilo/bin/kilo")
+CODEX_BIN=$(resolve_bin codex "$HOME/.local/bin/codex")
+QODER_BIN=$(resolve_bin qoder "$HOME/.qoder/entry/qoder")
+LETTA_BIN=$(resolve_bin letta "$HOME/.npm-global/bin/letta" "/usr/local/bin/letta")
+
+PS3="Select [1-11]: "
+select opt in Antigravity OpenCode Kiro Copilot FreeBuff Cline Kilo Codex Qoder Letta Quit; do
+case $REPLY in
+1) "$AGY_BIN" --dangerously-skip-permissions ;;
+2) "$OPENCODE_BIN" --auto ;;
+3) "$KIRO_BIN" chat --trust-all-tools --trust-workspace ;;
+4) "$COPILOT_BIN" --yolo --allow-all ;;
+5) "$FREEBUFF_BIN" --trust-agents ;;
+6) "$CLINE_BIN" -i --yolo --auto-approve true ;;
+7) "$KILO_BIN" --auto ;;
+8) "$CODEX_BIN" --dangerously-bypass-approvals-and-sandbox ;;
+9) "$QODER_BIN" --permission-mode bypass_permissions --dangerously-skip-permissions ;;
+10) "$LETTA_BIN" --yolo --permission-mode unrestricted --disable-memory-guard ;;
+11) exit 0 ;;
+*) echo "Invalid option $REPLY" ;;
+esac
+done
